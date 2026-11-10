@@ -83,6 +83,9 @@ const LazyLoopVideo: React.FC<{ src: string }> = ({ src }) => {
  *  曾经默认自动循环：十几个 1080p 场景同时跑、闪白转场卡每 0.3s 白一次、字卡每 1.8s 淡出重来，
  *  首屏像在闪光灯下；大图反复解码还刷出一串 EncodingError。 */
 const LazyCardLoop: React.FC<{ card: CardDef }> = ({ card }) => {
+  // Film units (cards that come from the linked project's manifest) are few and light: loop them automatically.
+  // The big demo library keeps the still poster + hover-to-play behaviour described above.
+  const autoplay = card.id.startsWith("proj:");
   const themeId = useStore(s => s.project.themeId);
   const themeColors = useStore(s => s.project.themeColors);
   const { ref, visible } = useVisible();
@@ -107,14 +110,19 @@ const LazyCardLoop: React.FC<{ card: CardDef }> = ({ card }) => {
   useEffect(() => {
     const p = player.current;
     if (!p) return;
-    if (hover) {
+    if (autoplay) {
+      if (visible) {
+        p.seekTo(0);
+        p.play();
+      }
+    } else if (hover) {
       p.seekTo(0);
       p.play();
     } else {
       p.pause();
       p.seekTo(poster);
     }
-  }, [hover, poster, visible]);
+  }, [hover, poster, visible, autoplay]);
   return (
     <div ref={ref} className="lib-thumb" style={{ position: "relative" }}>
       {visible && (
@@ -126,7 +134,9 @@ const LazyCardLoop: React.FC<{ card: CardDef }> = ({ card }) => {
           compositionWidth={width}
           compositionHeight={height}
           fps={cardFps(card)}
-          initialFrame={poster}
+          initialFrame={autoplay ? 0 : poster}
+          // film units: replay only the first 3 s so their entrance animation keeps showing
+          {...(autoplay ? { inFrame: 0, outFrame: Math.min(total - 1, Math.round(cardFps(card) * 3)) } : {})}
           loop
           controls={false}
           initiallyMuted

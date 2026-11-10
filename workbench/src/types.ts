@@ -18,6 +18,13 @@ export interface ClipData {
   /** 图层位移（px，合成坐标系） */
   x: number;
   y: number;
+  /** Rotation in degrees (clockwise) around the layer centre. Optional: older projects omit it. */
+  rotate?: number;
+  /** Mirror the layer horizontally / vertically. */
+  flipX?: boolean;
+  flipY?: boolean;
+  /** Crop in percent of the frame, per edge (0–90). Optional: older projects omit it. */
+  crop?: { l: number; t: number; r: number; b: number };
   /** 卡片专属属性覆盖（缺省值来自卡片 schema） */
   props: Record<string, unknown>;
   /** 时间轨上显示的自定义标签（缺省显示卡片名）——导入成片时的镜头/音效用它标注 */
@@ -61,3 +68,18 @@ export const projectEndFrame = (project: ProjectData): number => {
 /** 工程总时长（帧）：最晚 clip 结束 + 1s 余量，最短 5s（编辑预览用；按工程 fps 换算） */
 export const projectDuration = (project: ProjectData): number =>
   Math.max(5 * project.fps, projectEndFrame(project) + project.fps);
+
+/** CSS for the layer transform + crop of a clip (shared by preview and export, which use the same composition). */
+export const layerStyle = (c: Pick<ClipData, "x" | "y" | "scale" | "opacity" | "rotate" | "flipX" | "flipY" | "crop">): {
+  opacity: number;
+  transform: string;
+  clipPath?: string;
+} => {
+  const sx = c.scale * (c.flipX ? -1 : 1);
+  const sy = c.scale * (c.flipY ? -1 : 1);
+  const rot = c.rotate ? ` rotate(${c.rotate}deg)` : "";
+  const k = c.crop;
+  // clip-path is applied before the element's own transform, so the crop moves with the layer (like CapCut)
+  const clipPath = k && (k.l || k.t || k.r || k.b) ? `inset(${k.t}% ${k.r}% ${k.b}% ${k.l}%)` : undefined;
+  return { opacity: c.opacity, transform: `translate(${c.x}px, ${c.y}px)${rot} scale(${sx}, ${sy})`, clipPath };
+};

@@ -1,5 +1,6 @@
 import React from "react";
 import { AbsoluteFill, Freeze, Sequence, useCurrentFrame } from "remotion";
+import { layerStyle } from "../types";
 import type { ProjectData } from "../types";
 import { CARDS } from "../cards/registry";
 import { MANIFEST } from '../cards/projectCards';
@@ -47,10 +48,7 @@ export const MainComposition: React.FC<{ project: ProjectData }> = ({ project })
             return (
               <Sequence key={clip.id} from={clip.start} durationInFrames={duration}>
                 <AbsoluteFill
-                  style={{
-                    opacity: clip.opacity,
-                    transform: `translate(${clip.x}px, ${clip.y}px) scale(${clip.scale})`,
-                  }}
+                  style={layerStyle(clip)}
                 >
                   {card.kind === "video" ? (
                     // 视频卡：同音频卡走原生播放通道，保留图层包裹

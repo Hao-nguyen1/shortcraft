@@ -331,6 +331,58 @@ export const Inspector: React.FC = () => {
               <span className="slider-val">{clip.scale.toFixed(2)}</span>
             </span>
           </Row>
+          <Row label={t("insp.rotate")}>
+            <span className="ctl-row">
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                step={1}
+                value={clip.rotate ?? 0}
+                onPointerDown={begin}
+                onChange={(e) => updateClip(clip.id, { rotate: Number(e.target.value) })}
+              />
+              <span className="slider-val">{Math.round(clip.rotate ?? 0)}°</span>
+            </span>
+          </Row>
+          <Row label={t("insp.flip")}>
+            <span className="ctl-row">
+              <label>
+                <input type="checkbox" checked={!!clip.flipX} onPointerDown={begin} onChange={(e) => updateClip(clip.id, { flipX: e.target.checked })} /> {t("insp.flipX")}
+              </label>
+              <label>
+                <input type="checkbox" checked={!!clip.flipY} onPointerDown={begin} onChange={(e) => updateClip(clip.id, { flipY: e.target.checked })} /> {t("insp.flipY")}
+              </label>
+            </span>
+          </Row>
+          {(["l", "t", "r", "b"] as const).map((edge) => (
+            <Row key={edge} label={t(`insp.crop.${edge}`)}>
+              <span className="ctl-row">
+                <input
+                  type="range"
+                  min={0}
+                  max={90}
+                  step={1}
+                  value={clip.crop?.[edge] ?? 0}
+                  onPointerDown={begin}
+                  onChange={(e) =>
+                    updateClip(clip.id, { crop: { l: 0, t: 0, r: 0, b: 0, ...clip.crop, [edge]: Number(e.target.value) } })
+                  }
+                />
+                <span className="slider-val">{Math.round(clip.crop?.[edge] ?? 0)}%</span>
+              </span>
+            </Row>
+          ))}
+          <Row label="">
+            <button
+              onClick={() => {
+                begin();
+                updateClip(clip.id, { rotate: 0, flipX: false, flipY: false, crop: { l: 0, t: 0, r: 0, b: 0 } });
+              }}
+            >
+              {t("insp.resetTransform")}
+            </button>
+          </Row>
           <Row label={t("insp.x")}>
             <span className="ctl-row">
               <input

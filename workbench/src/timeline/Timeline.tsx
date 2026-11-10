@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { projectDuration, useStore } from "../store";
 import { Ruler } from "./Ruler";
+import { seekTo } from "../playerRef";
 import { ClipView } from "./ClipView";
 import { DRAG_MIME, readDragPayload } from "../dnd";
 import { useT, useTx } from "../i18n";
@@ -11,9 +12,27 @@ const HEADER_W = 140;
 const PlayheadLine: React.FC = () => {
   const playhead = useStore((s) => s.playhead);
   const ppf = useStore((s) => s.pxPerFrame);
+  const setPlayhead = useStore((s) => s.setPlayhead);
+  // Grab the red cap to scrub; frame = pointer offset from the start of the track area
+  const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const line = e.currentTarget.parentElement!;
+    const originX = line.getBoundingClientRect().left - playhead * ppf;
+    const move = (ev: PointerEvent) => {
+      const f = Math.max(0, Math.round((ev.clientX - originX) / ppf));
+      seekTo(f);
+      setPlayhead(f);
+    };
+    const up = () => window.removeEventListener("pointermove", move);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up, { once: true });
+  };
   return (
     <div className="playhead" style={{ left: HEADER_W + playhead * ppf }}>
       <div className="playhead-cap" />
+      {/* larger invisible hit area around the cap */}
+      <div onPointerDown={onDown} style={{ position: "absolute", top: 0, left: -11, width: 22, height: 20, pointerEvents: "auto", cursor: "ew-resize" }} />
     </div>
   );
 };

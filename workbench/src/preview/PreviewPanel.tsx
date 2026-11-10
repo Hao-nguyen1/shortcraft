@@ -117,6 +117,21 @@ const Transport: React.FC<{
       <span className="timecode">
         {fmtFrames(playhead, fps)} <span className="dim">/ {fmtFrames(duration, fps)}</span>
       </span>
+      <input
+        className="seek-bar"
+        type="range"
+        min={0}
+        max={Math.max(1, duration - 1)}
+        step={1}
+        value={Math.min(playhead, Math.max(1, duration - 1))}
+        title={t("prev.seek")}
+        onChange={(e) => {
+          const f = Number(e.target.value);
+          seekTo(f);
+          setPlayhead(f);
+        }}
+        style={{ flex: 1, minWidth: 80, margin: "0 12px" }}
+      />
       <label className="loop-toggle">
         <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
         {t("prev.loop")}

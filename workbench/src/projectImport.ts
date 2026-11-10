@@ -53,13 +53,19 @@ const packAudio = (cues: ManifestAudio[], trackName: string, defaultDuration: nu
  *  每个单元的 start/duration 与 Main.tsx 里的 <Sequence> 逐帧一致，导入后先不改任何东西
  *  渲出来就是原片。 */
 export const buildProjectFromManifest = (m: WorkbenchManifest = MANIFEST!): ProjectData => {
-  const unitTrack = (kind: "shot" | "transition" | "caption" | "overlay", name: string): TrackData | null => {
+  const unitTracks = (kind: "shot" | "transition" | "caption" | "overlay", name: string): TrackData[] => {
     const units = unitsOf(m, kind);
-    if (!units.length) return null;
-    return {
+    if (!units.length) return [];
+    const groups = new Map<string, typeof units>();
+    for (const u of units) {
+      const k = u.track ?? name;
+      groups.set(k, [...(groups.get(k) ?? []), u]);
+    }
+    // Later-listed groups render on top, so list them first (tracks[0] is the top layer).
+    return [...groups].reverse().map(([trackName, us]) => ({
       id: uid("track"),
-      name,
-      clips: units.map((u) => ({
+      name: trackName,
+      clips: us.map((u) => ({
         ...baseClip(),
         id: uid("clip"),
         cardId: cardIdOfUnit(u),
@@ -68,19 +74,17 @@ export const buildProjectFromManifest = (m: WorkbenchManifest = MANIFEST!): Proj
         props: inheritedProps(m, u.themeKey, u.props),
         label: u.label ?? u.id,
       })),
-    };
+    }));
   };
 
   const order = m.order ?? ["transitions", "captions", "overlays"];
   const NAMES = { transitions: t("track.transitions"), captions: t("track.captions"), overlays: t("track.overlays") } as const;
-  const upper = order
-    .map((k) => unitTrack(k.slice(0, -1) as "transition" | "caption" | "overlay", NAMES[k]))
-    .filter((t): t is TrackData => !!t);
+  const upper = order.flatMap((k) => unitTracks(k.slice(0, -1) as "transition" | "caption" | "overlay", NAMES[k]));
 
   const tracks: TrackData[] = [
     // tracks[0] 为最上层，对应原片 z 序：转场 > 字幕 > 叠加层 > 镜头（缺省序，清单 order 可改）
     ...upper,
-    unitTrack("shot", t("track.shots"))!,
+    ...unitTracks("shot", t("track.shots")),
     ...(m.bgm?.length ? packAudio(m.bgm, t("track.music"), m.total, m.total) : []),
     ...(m.sfx?.length ? packAudio(m.sfx, t("track.sfx"), 90, m.total) : []),
   ];

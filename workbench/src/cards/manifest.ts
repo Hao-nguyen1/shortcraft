@@ -13,6 +13,9 @@ export type ManifestUnit = {
   id: string;
   /** 时间轨上显示名（缺省 id） */
   label?: string;
+  /** Optional track name: units sharing a name go on the same track, different names get their own track
+   *  (lets a film expose every object as its own draggable layer). Omitted = the kind's default track. */
+  track?: string;
   /** 绝对起帧 */
   from: number;
   /** 帧数 */

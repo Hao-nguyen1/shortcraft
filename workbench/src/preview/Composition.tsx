@@ -48,6 +48,7 @@ export const MainComposition: React.FC<{ project: ProjectData }> = ({ project })
             return (
               <Sequence key={clip.id} from={clip.start} durationInFrames={duration}>
                 <AbsoluteFill
+                  data-clip-id={clip.id}
                   style={layerStyle(clip)}
                 >
                   {card.kind === "video" ? (

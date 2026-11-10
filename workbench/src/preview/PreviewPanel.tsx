@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Player } from "@remotion/player";
 import { MainComposition } from "./Composition";
 import { playerRef, seekTo, togglePlay } from "../playerRef";
@@ -10,6 +10,7 @@ import { cardFps, cardSize } from "../cards/types";
 import { MANIFEST } from '../cards/projectCards';
 import { themedProps } from '../theme';
 import { cardName, t, useLocale, useT } from "../i18n";
+import { hitTestClip } from "./dragObjects";
 
 /** 素材库点击预览：占据画面区，循环播放；主工程 Player 保持挂载（display:none） */
 const ItemPreview: React.FC<{ item: NonNullable<PreviewItem>; onClose: () => void }> = ({
@@ -137,10 +138,56 @@ export const PreviewPanel: React.FC = () => {
   const duration = projectDuration(project);
   const inputProps = useMemo(() => ({ project }), [project]);
 
+  // Drag objects directly on the preview: pointer down picks the clip under the cursor, move writes its x / y.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ id: string; px: number; py: number; x: number; y: number; scale: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const onPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    const root = stageRef.current;
+    const box = playerRef.current?.getContainerNode();
+    if (!root || !box || e.button !== 0) return;
+    const rect = box.getBoundingClientRect();
+    const scale = rect.width / project.width;
+    const id = hitTestClip(root, e.clientX, e.clientY, rect.width * rect.height);
+    if (!id) return;
+    const st = useStore.getState();
+    let clip = null as null | { x: number; y: number };
+    for (const tr of st.project.tracks) for (const c of tr.clips) if (c.id === id) clip = c;
+    if (!clip) return;
+    st.select(id);
+    drag.current = { id, px: e.clientX, py: e.clientY, x: clip.x, y: clip.y, scale, moved: false };
+    root.setPointerCapture(e.pointerId);
+    e.stopPropagation(); // keep Player's click-to-play from firing
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = (e.clientX - d.px) / d.scale;
+    const dy = (e.clientY - d.py) / d.scale;
+    if (!d.moved && Math.hypot(dx, dy) * d.scale < 3) return;
+    const st = useStore.getState();
+    if (!d.moved) { st.commit(); d.moved = true; } // one undo step per drag
+    st.updateClip(d.id, { x: Math.round(d.x + dx), y: Math.round(d.y + dy) });
+  };
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    drag.current = null;
+    if (d?.moved) suppressClick.current = true;
+    if (stageRef.current?.hasPointerCapture(e.pointerId)) stageRef.current.releasePointerCapture(e.pointerId);
+  };
+
   return (
     <div className="preview-panel">
       {previewItem && <ItemPreview item={previewItem} onClose={() => setPreview(null)} />}
-      <div className="preview-stage" style={previewItem ? { display: "none" } : undefined}>
+      <div
+        ref={stageRef}
+        className="preview-stage"
+        style={previewItem ? { display: "none" } : undefined}
+        onPointerDownCapture={onPointerDownCapture}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onClickCapture={(e) => { if (suppressClick.current) { suppressClick.current = false; e.stopPropagation(); } }}
+      >
         <Player
           ref={playerRef}
           component={MainComposition}

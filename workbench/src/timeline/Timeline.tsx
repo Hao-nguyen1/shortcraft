@@ -31,8 +31,9 @@ const PlayheadLine: React.FC = () => {
   return (
     <div className="playhead" style={{ left: HEADER_W + playhead * ppf }}>
       <div className="playhead-cap" />
-      {/* larger invisible hit area around the cap */}
+      {/* invisible hit areas: a wide one around the cap, and a narrow strip along the whole line */}
       <div onPointerDown={onDown} style={{ position: "absolute", top: 0, left: -11, width: 22, height: 20, pointerEvents: "auto", cursor: "ew-resize" }} />
+      <div onPointerDown={onDown} style={{ position: "absolute", top: 20, bottom: 0, left: -4, width: 9, pointerEvents: "auto", cursor: "ew-resize" }} />
     </div>
   );
 };

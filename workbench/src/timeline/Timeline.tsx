@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { projectDuration, useStore } from "../store";
 import { Ruler } from "./Ruler";
 import { seekTo } from "../playerRef";
@@ -136,6 +136,23 @@ export const Timeline: React.FC = () => {
     return last ? last.offsetTop + last.offsetHeight : null;
   };
   const dropTop = dropLineTop();
+
+  // Selecting a clip anywhere (e.g. by clicking an object on the preview) scrolls the timeline to it.
+  useEffect(() => {
+    const sc = scrollerRef.current;
+    if (!sc || !selectedClipId) return;
+    const el = sc.querySelector<HTMLElement>(`[data-tl-clip="${selectedClipId}"]`);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const s = sc.getBoundingClientRect();
+    const PAD = 12, RULER = 30; // keep clear of the sticky ruler and track headers
+    let top = sc.scrollTop, left = sc.scrollLeft;
+    if (r.top < s.top + RULER) top -= s.top + RULER - r.top + PAD;
+    else if (r.bottom > s.bottom) top += r.bottom - s.bottom + PAD;
+    if (r.right < s.left + HEADER_W + PAD) left -= s.left + HEADER_W + PAD - r.right;
+    else if (r.left > s.right - PAD) left += r.left - s.right + PAD + 40;
+    if (top !== sc.scrollTop || left !== sc.scrollLeft) sc.scrollTo({ top: Math.max(0, top), left: Math.max(0, left), behavior: "smooth" });
+  }, [selectedClipId]);
 
   return (
     <div className={`timeline${trackDrag ? " track-dragging" : ""}`}>

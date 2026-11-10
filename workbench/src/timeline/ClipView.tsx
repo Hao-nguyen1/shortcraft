@@ -112,6 +112,7 @@ export const ClipView: React.FC<{
   return (
     <div
       className={`clip${selected ? " selected" : ""}`}
+      data-tl-clip={clip.id}
       style={{
         left: clip.start * ppf,
         width: Math.max(8, clip.duration * ppf),

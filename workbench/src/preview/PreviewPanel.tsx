@@ -11,6 +11,7 @@ import { MANIFEST } from '../cards/projectCards';
 import { themedProps } from '../theme';
 import { cardName, t, useLocale, useT } from "../i18n";
 import { hitTestClip } from "./dragObjects";
+import { SelectionFrame } from "./SelectionFrame";
 
 /** 素材库点击预览：占据画面区，循环播放；主工程 Player 保持挂载（display:none） */
 const ItemPreview: React.FC<{ item: NonNullable<PreviewItem>; onClose: () => void }> = ({
@@ -197,7 +198,7 @@ export const PreviewPanel: React.FC = () => {
       <div
         ref={stageRef}
         className="preview-stage"
-        style={previewItem ? { display: "none" } : undefined}
+        style={previewItem ? { display: "none" } : { position: "relative" }}
         onPointerDownCapture={onPointerDownCapture}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -218,6 +219,7 @@ export const PreviewPanel: React.FC = () => {
           style={{ width: "100%", height: "100%" }}
           acknowledgeRemotionLicense
         />
+        <SelectionFrame stage={stageRef} />
       </div>
       {!previewItem && (
         <Transport

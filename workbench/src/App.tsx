@@ -48,6 +48,8 @@ const ExportButton: React.FC = () => {
     status: "running" | "done" | "error";
     progress: number;
     lastLine?: string;
+    output?: string;
+    copiedTo?: string;
   } | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
@@ -91,6 +93,9 @@ const ExportButton: React.FC = () => {
         >
           {t("export.done")}
         </button>
+        <span className="dim" style={{ fontSize: 11, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={job.copiedTo ?? job.output}>
+          {(job.copiedTo ?? job.output ?? "").split("/").slice(-3).join("/")}
+        </span>
         <button className="btn primary" onClick={start}>
           {t("export.again")}
         </button>

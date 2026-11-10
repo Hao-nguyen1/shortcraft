@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync, cpSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync, cpSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -22,6 +22,20 @@ type ExportJob = {
   output: string; // 相对 workbench 的输出路径
   lastLine: string;
   logTail: string[];
+  /** Absolute path of the copy placed next to the linked film project (absent when no project is linked). */
+  copiedTo?: string;
+};
+
+/** Folder of the film project linked via workbench/proj (…/<project>/src or …/<project>/remotion/src), or null. */
+const linkedProjectDir = (): string | null => {
+  try {
+    const real = realpathSync(path.join(root, "proj"));
+    let dir = path.dirname(real);
+    if (path.basename(dir) === "remotion") dir = path.dirname(dir);
+    return dir;
+  } catch {
+    return null;
+  }
 };
 
 const renderExportPlugin = (): Plugin => {
@@ -147,8 +161,22 @@ const renderExportPlugin = (): Plugin => {
               child.on("close", (code) => {
                 dropProps(); // Remotion CLI 启动时已读完 props，成功失败都不再需要
                 job.status = code === 0 ? "done" : "error";
-                if (code === 0) job.progress = 1;
-                else {
+                if (code === 0) {
+                  job.progress = 1;
+                  // Also drop a copy into the film project's own folder (<project>/exports/)
+                  const pdir = linkedProjectDir();
+                  if (pdir) {
+                    try {
+                      const dest = path.join(pdir, "exports");
+                      mkdirSync(dest, { recursive: true });
+                      const target = path.join(dest, path.basename(output));
+                      copyFileSync(path.join(root, output), target);
+                      job.copiedTo = target;
+                    } catch (e) {
+                      job.lastLine = `已导出到 ${output}，但复制到工程目录失败：${e instanceof Error ? e.message : String(e)}`;
+                    }
+                  }
+                } else {
                   // 把最有信息量的错误行顶到 UI（否则 lastLine 常是堆栈尾行）
                   const err = job.logTail.find((l) => l.includes("Error"));
                   if (err) job.lastLine = err;

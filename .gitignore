@@ -34,3 +34,8 @@ PRODUCT.md
 /shot-polish/after-v1/
 /shot-polish/final/
 /shot-polish/_work/
+
+# local sample projects, inputs and outputs (not part of the code changes)
+/resource/
+/videos/innocom-edit/
+/videos/compare-before-after.mp4

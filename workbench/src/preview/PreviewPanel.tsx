@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Player } from "@remotion/player";
+import { Player, type PlayerRef } from "@remotion/player";
 import { MainComposition } from "./Composition";
 import { playerRef, seekTo, togglePlay } from "../playerRef";
 import { projectDuration, useStore } from "../store";
@@ -21,15 +21,23 @@ const ItemPreview: React.FC<{ item: NonNullable<PreviewItem>; onClose: () => voi
   const themeId = useStore(s => s.project.themeId);
   const themeColors = useStore(s => s.project.themeColors);
   const t = useT();
+  const cardPlayer = useRef<PlayerRef>(null);
+  const replay = () => {
+    cardPlayer.current?.seekTo(0);
+    cardPlayer.current?.play();
+  };
   let body: React.ReactNode = null;
   let title = "";
+  let isFilmUnit = false;
   if (item.kind === "card") {
     const card = CARDS[item.cardId];
     title = card ? cardName(card) : item.cardId;
+    isFilmUnit = !!card && card.id.startsWith("proj:");
     if (card && card.kind !== "audio") {
       const { width, height } = cardSize(card);
       body = (
         <Player
+          ref={cardPlayer}
           component={card.component}
           inputProps={themedProps(MANIFEST, card, themeId, {}, themeColors)}
           durationInFrames={Math.max(2, card.durationInFrames)}
@@ -37,9 +45,12 @@ const ItemPreview: React.FC<{ item: NonNullable<PreviewItem>; onClose: () => voi
           compositionHeight={height}
           fps={cardFps(card)}
           autoPlay
-          loop
+          // Film units: play the entrance once (first 4 s), rest on the last frame; click the picture or press Replay to run it again.
+          loop={!isFilmUnit}
+          moveToBeginningWhenEnded={!isFilmUnit}
+          {...(isFilmUnit ? { inFrame: 0, outFrame: Math.min(Math.max(2, card.durationInFrames) - 1, Math.round(cardFps(card) * 4)) } : {})}
           controls={false}
-          clickToPlay
+          clickToPlay={!isFilmUnit}
           numberOfSharedAudioTags={32}
           style={{ width: "100%", height: "100%" }}
           acknowledgeRemotionLicense
@@ -64,11 +75,18 @@ const ItemPreview: React.FC<{ item: NonNullable<PreviewItem>; onClose: () => voi
   }
   return (
     <>
-      <div className="preview-stage">{body}</div>
+      <div className="preview-stage" onClick={isFilmUnit ? replay : undefined} style={isFilmUnit ? { cursor: "pointer" } : undefined}>
+        {body}
+      </div>
       <div className="transport">
         <span className="preview-tag">{t("prev.tag")}</span>
         <b>{title}</b>
         <span className="dim">{t("prev.dragHint")}</span>
+        {isFilmUnit && (
+          <button className="btn" onClick={replay} title={t("prev.replay")}>
+            ↻ {t("prev.replay")}
+          </button>
+        )}
         <button className="btn" style={{ marginLeft: "auto" }} onClick={onClose}>
           {t("prev.back")}
         </button>

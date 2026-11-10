@@ -83,7 +83,7 @@ const LazyLoopVideo: React.FC<{ src: string }> = ({ src }) => {
  *  曾经默认自动循环：十几个 1080p 场景同时跑、闪白转场卡每 0.3s 白一次、字卡每 1.8s 淡出重来，
  *  首屏像在闪光灯下；大图反复解码还刷出一串 EncodingError。 */
 const LazyCardLoop: React.FC<{ card: CardDef }> = ({ card }) => {
-  // Film units (cards that come from the linked project's manifest) are few and light: loop them automatically.
+  // Film units (cards that come from the linked project's manifest) are few and light: play them once automatically.
   // The big demo library keeps the still poster + hover-to-play behaviour described above.
   const autoplay = card.id.startsWith("proj:");
   const themeId = useStore(s => s.project.themeId);
@@ -92,6 +92,11 @@ const LazyCardLoop: React.FC<{ card: CardDef }> = ({ card }) => {
   const { width, height } = cardSize(card);
   const player = useRef<PlayerRef>(null);
   const [hover, setHover] = useState(false);
+  const played = useRef(false);
+  // Film units keep their player mounted once seen: unmounting off-screen would reset it to a blank first frame
+  const [seen, setSeen] = useState(false);
+  useEffect(() => { if (visible) setSeen(true); }, [visible]);
+  const mounted = autoplay ? seen : visible;
   const total = Math.max(2, card.durationInFrames);
   const poster = Math.min(total - 1, Math.round(total * 0.45));
   // .lib-thumb 本身 pointer-events:none（让拖拽落到 .lib-cell 上），悬停监听挂到所属 cell
@@ -100,22 +105,35 @@ const LazyCardLoop: React.FC<{ card: CardDef }> = ({ card }) => {
     if (!cell) return;
     const on = () => setHover(true);
     const off = () => setHover(false);
+    // film units play once on appearing and again whenever the user clicks the card
+    const replay = () => {
+      if (!autoplay) return;
+      const p = player.current;
+      p?.seekTo(0);
+      p?.play();
+    };
     cell.addEventListener("pointerenter", on);
     cell.addEventListener("pointerleave", off);
+    cell.addEventListener("click", replay);
     return () => {
       cell.removeEventListener("pointerenter", on);
       cell.removeEventListener("pointerleave", off);
+      cell.removeEventListener("click", replay);
     };
-  }, [ref]);
+  }, [ref, autoplay]);
   useEffect(() => {
+    // film units: play once when they scroll into view (clicking the card replays, see above)
+    if (!autoplay || !mounted || played.current) return;
+    played.current = true; // once per card: scrolling it out of view and back must not replay it
+    const p = player.current;
+    p?.seekTo(0);
+    p?.play();
+  }, [autoplay, mounted]);
+  useEffect(() => {
+    if (autoplay) return;
     const p = player.current;
     if (!p) return;
-    if (autoplay) {
-      if (visible) {
-        p.seekTo(0);
-        p.play();
-      }
-    } else if (hover) {
+    if (hover) {
       p.seekTo(0);
       p.play();
     } else {
@@ -125,7 +143,7 @@ const LazyCardLoop: React.FC<{ card: CardDef }> = ({ card }) => {
   }, [hover, poster, visible, autoplay]);
   return (
     <div ref={ref} className="lib-thumb" style={{ position: "relative" }}>
-      {visible && (
+      {mounted && (
         <Player
           ref={player}
           component={card.component}
@@ -135,9 +153,10 @@ const LazyCardLoop: React.FC<{ card: CardDef }> = ({ card }) => {
           compositionHeight={height}
           fps={cardFps(card)}
           initialFrame={autoplay ? 0 : poster}
-          // film units: replay only the first 3 s so their entrance animation keeps showing
+          // film units: play only the first 3 s (entrance animation), once, then rest on the last frame
           {...(autoplay ? { inFrame: 0, outFrame: Math.min(total - 1, Math.round(cardFps(card) * 3)) } : {})}
-          loop
+          loop={!autoplay}
+          moveToBeginningWhenEnded={!autoplay}
           controls={false}
           initiallyMuted
           numberOfSharedAudioTags={0}
